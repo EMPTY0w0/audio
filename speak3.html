@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Text to Speech</title>
+</head>
+<body>
+  <h2>💬 输入你想听我念的骚话：</h2>
+  <textarea id="text" rows="10" cols="60" placeholder="快把你那想让我念的东西写进去～" oninput="updateCharCount()"></textarea>
+  <p id="charCount">当前字数：0 / 建议上限：250 字</p>
+
+  <label for="voice">选择声音：</label>
+  <select id="voice"></select><br>
+
+  <label for="rate">语速：</label>
+  <input type="range" id="rate" min="0.5" max="2" step="0.1" value="1">
+  <span id="rateValue">1</span><br>
+
+  <label for="duration">循环播放时长（秒）：</label>
+  <input type="number" id="duration" min="1" value="10"><br>
+
+  <button onclick="speakText()">开始播放</button>
+
+  <script>
+    const synth = window.speechSynthesis;
+    const voiceSelect = document.getElementById('voice');
+    const rate = document.getElementById('rate');
+    const rateValue = document.getElementById('rateValue');
+    const charCount = document.getElementById('charCount');
+
+    function populateVoices() {
+      const voices = synth.getVoices();
+      voiceSelect.innerHTML = '';
+      voices.forEach((voice, i) => {
+        const option = document.createElement('option');
+        option.textContent = `${voice.name} (${voice.lang})`;
+        option.value = i;
+        voiceSelect.appendChild(option);
+      });
+    }
+
+    populateVoices();
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+      speechSynthesis.onvoiceschanged = populateVoices;
+    }
+
+    rate.oninput = () => {
+      rateValue.textContent = rate.value;
+    };
+
+    function updateCharCount() {
+      const text = document.getElementById('text').value;
+      charCount.textContent = `当前字数：${text.length} / 建议上限：250 字`;
+      charCount.style.color = text.length > 250 ? 'red' : 'black';
+    }
+
+    function speakText() {
+      const text = document.getElementById('text').value;
+      const selectedVoice = synth.getVoices()[voiceSelect.value];
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.voice = selectedVoice;
+      utterance.rate = parseFloat(rate.value);
+
+      const duration = parseInt(document.getElementById('duration').value) * 1000;
+      const startTime = Date.now();
+
+      synth.cancel();
+
+      function speakLoop() {
+        if (Date.now() - startTime < duration) {
+          synth.speak(utterance);
+          utterance.onend = speakLoop;
+        }
+      }
+
+      speakLoop();
+    }
+  </script>
+</body>
+</html>

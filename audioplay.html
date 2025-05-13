@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>🎧 自定义音频播放</title>
+</head>
+<body>
+  <h2>上传音频并设置播放时长和控制进度 🎶</h2>
+
+  <input type="file" id="audioFile" accept="audio/*"><br><br>
+
+  <label for="duration">设置播放时长（秒）：</label>
+  <input type="number" id="duration" min="1" value="10"><br><br>
+
+  <button onclick="playAudio()">播放音频</button>
+  <button onclick="stopAudio()">停止音频</button><br><br>
+
+  <button onclick="seekAudio(-5)">⏪ 倒退5秒</button>
+  <button onclick="seekAudio(5)">⏩ 快进5秒</button><br><br>
+
+  <label for="loop">循环播放：</label>
+  <input type="checkbox" id="loop"><br><br>
+
+  <audio id="audioControl" controls></audio>
+  <div id="downloadContainer"></div> <!-- 下载链接容器 -->
+
+  <script>
+    let audio = document.getElementById("audioControl");
+    let loopInterval = null;
+
+    // 播放音频
+    function playAudio() {
+      const fileInput = document.getElementById("audioFile");
+      if (fileInput.files.length === 0) {
+        alert("请上传一个音频文件！");
+        return;
+      }
+
+      const file = fileInput.files[0];
+      const audioUrl = URL.createObjectURL(file);
+      audio.src = audioUrl;
+      audio.play();
+
+      const duration = parseInt(document.getElementById("duration").value);
+      const loop = document.getElementById("loop").checked;
+
+      if (loop) {
+        audio.loop = false; // 禁用默认的循环播放
+        audio.addEventListener('ended', function() {
+          audio.currentTime = 0; // 重置播放进度
+          audio.play(); // 重新播放
+        });
+      }
+
+      // 设置播放时长
+      setTimeout(() => {
+        if (!loop) stopAudio();
+      }, duration * 1000);
+    }
+
+    // 停止音频
+    function stopAudio() {
+      if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
+        audio = null;
+      }
+      if (loopInterval) {
+        clearInterval(loopInterval);
+        loopInterval = null;
+      }
+    }
+
+    // 快进和倒退功能
+    function seekAudio(seconds) {
+      if (audio && audio.readyState >= 1) {
+        let newTime = audio.currentTime + seconds;
+        newTime = Math.max(0, Math.min(newTime, audio.duration));
+        audio.currentTime = newTime;
+      } else {
+        console.warn("音频还没准备好呢宝贝，等等它嘛～🥺");
+      }
+    }
+  </script>
+</body>
+</html>
