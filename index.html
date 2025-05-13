@@ -3,54 +3,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎧Text to Speech</title>
+    <title>🎧听海哭的声音</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h2>💬 输入你想听我念的骚话：</h2>
+  <h2>让我念给你听 宝 😈</h2>
   <textarea id="text" rows="10" cols="60" placeholder="快把你那想让我念的东西写进去～" oninput="updateCharCount()"></textarea>
   <p id="charCount">当前字数：0 / 建议上限：250 字</p>
 
   <label for="voice">选择声音：</label>
-  <select id="voice"></select><br>
+  <select id="voice">
+    <option value="GUDYcgRAONiI1nXDcNQQ">MILO</option>
+    <option value="LruHrtVF6PSyGItzMNHS">BENJAMIN</option>
+    <option value="L1aJrPa7pLJEyYlh3Ilq">OLIVER HADDINGTON</option>
+  </select><br><br>
 
-  <label for="rate">语速：</label>
-  <input type="range" id="rate" min="0.5" max="2" step="0.1" value="1">
-  <span id="rateValue">1</span><br>
+  <label for="speed">语速：</label>
+  <input type="range" id="speed" min="0.5" max="4.0" step="0.1" value="1"><span id="speedVal">1</span><br><br>
 
-  <label for="duration">循环播放时长（秒）：</label>
-  <input type="number" id="duration" min="1" value="10"><br>
+  <label for="duration">播放时长（秒）：</label>
+  <input type="number" id="duration" min="1" value="10"><br><br>
 
-  <button onclick="speakText()">开始播放</button><br>
+  <label for="loop">循环播放：</label>
+  <input type="checkbox" id="loop"><br><br>
+  
+  <button onclick="seekAudio(-5)">⏪ 倒退5秒</button>
+  <button onclick="seekAudio(5)">⏩ 快进5秒</button><br><br>
 
+  <button onclick="playVoice()">播放</button>
+  <button onclick="stopAudio()">停止</button>
+
+  <audio id="audioControl" controls style="display: none;"></audio>
+  <div id="downloadContainer"></div> <!-- 新加的容器 -->  
+
+  <button onclick="generateAndDownloadVoice()">生成并下载音频</button><br>
   <button onclick="window.open('audioplay.html', '_blank')">点我跳到新页面</button>
 
+
   <script>
-    const synth = window.speechSynthesis;
-    const voiceSelect = document.getElementById('voice');
-    const rate = document.getElementById('rate');
-    const rateValue = document.getElementById('rateValue');
-    const charCount = document.getElementById('charCount');
+    let audio = null;
+    let loopInterval = null;
 
-    function populateVoices() {
-      const voices = synth.getVoices();
-      voiceSelect.innerHTML = '';
-      voices.forEach((voice, i) => {
-        const option = document.createElement('option');
-        option.textContent = `${voice.name} (${voice.lang})`;
-        option.value = i;
-        voiceSelect.appendChild(option);
+    document.getElementById("speed").addEventListener("input", function() {
+      document.getElementById("speedVal").textContent = this.value;
+    });
+
+    async function playVoice() {
+      stopAudio(); // Stop any current audio
+
+      const apiKey = "sk_0f59986a6dcc199672f16a5207c3385f52827006397bd22a";  // 替换成你的 ElevenLabs API Key
+      const voiceId = document.getElementById("voice").value;
+      const text = document.getElementById("text").value;
+      const speed = parseFloat(document.getElementById("speed").value);
+      const duration = parseInt(document.getElementById("duration").value);
+      const loop = document.getElementById("loop").checked;
+
+      const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+        method: "POST",
+        headers: {
+          "Accept": "audio/mpeg",
+          "Content-Type": "application/json",
+          "xi-api-key": apiKey
+        },
+        body: JSON.stringify({
+          text: text,
+          voice_settings: {
+            stability: 0.5,
+            similarity_boost: 0.75,
+            style: 0.5,
+            use_speaker_boost: true,
+            speed: speed
+          }
+        })
       });
+
+      const blob = await response.blob();
+      const audioUrl = URL.createObjectURL(blob);
+      audio = document.getElementById("audioControl");
+      audio.src = audioUrl;
+      audio.play();
+
+      // 💾 创建下载链接
+      const downloadLink = document.createElement("a");
+      downloadLink.href = audioUrl;
+      downloadLink.download = "naughty_voice.mp3";
+      downloadLink.textContent = "👉 下载音频";
+      downloadLink.style.display = "block";
+
+      // 移除旧的
+      const oldLink = document.getElementById("downloadLink");
+      if (oldLink) oldLink.remove();
+
+      // 将新的下载链接添加到下载容器中
+      downloadLink.id = "downloadLink";
+      document.getElementById("downloadContainer").appendChild(downloadLink);
+
+      if (loop) {
+        loopInterval = setInterval(() => {
+          audio.currentTime = 0;
+          audio.play();
+        }, duration * 1000);
+      }
+
+      setTimeout(() => {
+        if (!loop) stopAudio();
+      }, duration * 1000);
     }
 
-    populateVoices();
-    if (speechSynthesis.onvoiceschanged !== undefined) {
-      speechSynthesis.onvoiceschanged = populateVoices;
+    function stopAudio() {
+      if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
+        audio = null;
+      }
+      if (loopInterval) {
+        clearInterval(loopInterval);
+        loopInterval = null;
+      }
     }
-
-    rate.oninput = () => {
-      rateValue.textContent = rate.value;
-    };
 
     function updateCharCount() {
       const text = document.getElementById('text').value;
@@ -58,29 +128,16 @@
       charCount.style.color = text.length > 250 ? 'red' : 'black';
     }
 
-    function speakText() {
-      const text = document.getElementById('text').value;
-      const selectedVoice = synth.getVoices()[voiceSelect.value];
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.voice = selectedVoice;
-      utterance.rate = parseFloat(rate.value);
-
-      const duration = parseInt(document.getElementById('duration').value) * 1000;
-      const startTime = Date.now();
-
-      synth.cancel();
-
-      function speakLoop() {
-        if (Date.now() - startTime < duration) {
-          synth.speak(utterance);
-          utterance.onend = speakLoop;
-        }
+    function seekAudio(seconds) {
+      if (audio && audio.readyState >= 1) {
+        let newTime = audio.currentTime + seconds;
+        newTime = Math.max(0, Math.min(newTime, audio.duration));
+        audio.currentTime = newTime;
+      } else {
+        console.warn("音频还没准备好呢宝贝，等等它嘛～🥺");
       }
-
-      speakLoop();
     }
-
-    
   </script>
+
 </body>
 </html>
